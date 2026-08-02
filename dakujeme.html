@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rezervácia potvrdená — BoostMail</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=4">
+<script>window.BM_TRACK_SCHEDULE=true;</script>
+<script type="module" src="consent.js?v=3"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="assets/logo-dark.svg" alt="BoostMail">
+    <span class="mono">rezervácia potvrdená</span>
+  </header>
+
+  <section class="hero">
+    <span class="ok-badge">✓ Máte rezervované</span>
+    <h1 id="headline">Zostáva posledný krok.</h1>
+    <p class="sub" id="when"></p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">→</span> Tri veci, kým sa počujeme</h2>
+    <div class="steps">
+      <div class="step"><span class="n">1</span>
+        <div><b>Uložte si termín do kalendára</b>
+        <p>Jedno ťuknutie — nech vám to nič neprepíše.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+          <a class="btn ghost" id="gcal" target="_blank" rel="noopener" style="min-height:44px;font-size:14.5px;padding:10px 18px;width:auto">📅 Google Kalendár</a>
+          <button class="btn ghost" id="ics" style="min-height:44px;font-size:14.5px;padding:10px 18px;width:auto">Apple / Outlook</button>
+        </div></div>
+      </div>
+      <div class="step"><span class="n">2</span>
+        <div><b>Uložte si moje číslo</b>
+        <p>Zavolám vám z čísla <b id="phone"></b> — nech viete, že som to ja, a nie „neznáme číslo".</p></div>
+      </div>
+      <div class="step"><span class="n">3</span>
+        <div><b>Pozrite si 2 minúty nižšie</b>
+        <p>Ukážem vám presne, čo systém robí — nech na hovore už len riešime váš barbershop.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">▶</span> Čo vás na hovore čaká</h2>
+    <div class="video-wrap">
+      <iframe src="https://www.loom.com/embed/82dd929b35a548af8ee20fe4e9ee1260?hide_owner=true&hide_share=true&hideEmbedTopBar=true"
+        frameborder="0" allowfullscreen title="Rýchla ukážka výsledkov pred videohovorom"></iframe>
+    </div>
+    <p class="caption">Rýchla ukážka výsledkov a toho, čo robíme — 2 minúty.</p>
+  </section>
+
+  <section class="card">
+    <h2><span class="num">✂</span> Takto to vyzerá u našich klientov</h2>
+    <img class="proof-img" src="assets/proof-mnb.png" alt="Prehľad BoostMail — 7 788 € tržieb privedených e-mailom za 90 dní">
+    <p class="caption">MNB Barbershop — <b>7 788 € tržieb</b> privedených e-mailom za 90 dní, zo 4 036 odoslaných e-mailov. Priamo z ich prehľadu.</p>
+    <div style="background:#0a0a0a;border-radius:16px;padding:18px 14px;margin-top:16px">
+      <img src="assets/wa-1.png" alt="WhatsApp správa majiteľa barbershopu" style="width:100%;display:block;border-radius:10px">
+      <img src="assets/wa-2.png" alt="Doporučím vás, kade pôjdem" style="width:62%;display:block;border-radius:10px;margin-top:8px">
+      <p class="caption" style="color:rgba(255,255,255,.55);text-align:center;margin-top:12px;font-style:italic">Michael, majiteľ barbershopu — reakcia po 2 týždňoch na systéme</p>
+    </div>
+  </section>
+
+  <footer>
+    <span class="mono">BoostMail · nerad@boostmail.cz · <a href="zasady-ochrany-udajov.html">Ochrana údajov</a></span>
+  </footer>
+</div>
+
+<script type="module">
+import { VOJTA_PHONE, CALL_MINUTES } from "./config.js";
+
+const q = new URLSearchParams(location.search);
+const t = q.get("t") ? new Date(q.get("t")) : null;
+const name = (q.get("n") || "").split(" ")[0];
+
+document.getElementById("phone").textContent = VOJTA_PHONE;
+if (name) document.getElementById("headline").textContent = `${name}, zostáva posledný krok.`;
+
+if (t && !isNaN(t)) {
+  const fmt = new Intl.DateTimeFormat("sk-SK", { timeZone: "Europe/Bratislava", weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  document.getElementById("when").textContent = `Termín je váš: ${fmt.format(t)} · 15 minút · zavolá vám Vojta.`;
+} else {
+  document.getElementById("when").textContent = "Termín je váš — zavolá vám Vojta v dohodnutom čase.";
+}
+
+// Google Calendar template link (klient si pridá jedným ťuknutím)
+if (t && !isNaN(t)) {
+  const dtg = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const end = new Date(t.getTime() + CALL_MINUTES * 60000);
+  const params = new URLSearchParams({
+    action: "TEMPLATE",
+    text: "Hovor s Vojtom — BoostMail (15 min)",
+    dates: `${dtg(t)}/${dtg(end)}`,
+    details: `Zavolá vám Vojta z čísla ${VOJTA_PHONE}. Pozrieme sa na váš barbershop a koľko peňazí vám leží v rezerváku.`,
+    location: "Telefonát / Google Meet",
+  });
+  document.getElementById("gcal").href = `https://calendar.google.com/calendar/render?${params}`;
+} else {
+  document.getElementById("gcal").style.display = "none";
+}
+
+// ICS download
+document.getElementById("ics").onclick = () => {
+  if (!t || isNaN(t)) return;
+  const dt = (d) => d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const end = new Date(t.getTime() + CALL_MINUTES * 60000);
+  const ics = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//BoostMail//SK//SK", "BEGIN:VEVENT",
+    `UID:${Date.now()}@boostmail`, `DTSTAMP:${dt(new Date())}`, `DTSTART:${dt(t)}`, `DTEND:${dt(end)}`,
+    "SUMMARY:Hovor s Vojtom — BoostMail (15 min)",
+    `DESCRIPTION:Zavolá vám Vojta z čísla ${VOJTA_PHONE}. Pozrieme sa na váš barbershop.`,
+    "BEGIN:VALARM", "TRIGGER:-PT1H", "ACTION:DISPLAY", "DESCRIPTION:O hodinu hovor s Vojtom (BoostMail)", "END:VALARM",
+    "END:VEVENT", "END:VCALENDAR"].join("\r\n");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([ics], { type: "text/calendar" }));
+  a.download = "boostmail-hovor.ics";
+  a.click();
+};
+
+// Meta pixel event (až bude pixel ID)
+// if (window.fbq) fbq('track', 'Schedule');
+</script>
+</body>
+</html>

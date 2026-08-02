@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Rezervujte si 15 minút — BoostMail</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=4">
+<script type="module" src="consent.js?v=3"></script>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <img src="assets/logo-dark.svg" alt="BoostMail">
+    <span class="mono">15 min · online</span>
+  </header>
+
+  <section class="hero" style="padding-bottom:14px">
+    <span class="badge">📞 Hovor s Vojtom · 15 min</span>
+    <h1>Vyberte si termín</h1>
+    <p class="sub" style="font-size:15px">Pozrieme sa priamo na váš barbershop — a uvidíte, koľko peňazí vám leží v rezerváku.</p>
+  </section>
+
+  <section class="card" id="pick-card" style="margin-top:6px">
+    <div class="days" id="days"></div>
+    <p class="day-info" id="day-info"></p>
+    <div class="slots" id="slots"></div>
+    <p class="slots-empty" id="slots-empty" style="display:none">V tento deň už nie sú voľné termíny — skúste iný deň.</p>
+    <div class="chips" style="margin-top:16px">
+      <span class="chip">Žiadne záväzky</span>
+      <span class="chip">Volá Vojta</span>
+      <span class="chip">15 minút, viac nie</span>
+    </div>
+  </section>
+
+  <section class="card" id="form-card" style="display:none">
+    <h2><span class="num">2</span> Dokončite rezerváciu</h2>
+    <div class="summary" id="summary" style="margin-bottom:14px"></div>
+    <form id="bform" novalidate>
+      <div class="field">
+        <label for="f-name">Meno a priezvisko</label>
+        <input id="f-name" name="name" autocomplete="name" required maxlength="120" placeholder="Ján Novák">
+      </div>
+      <div class="field">
+        <label for="f-phone">Telefón</label>
+        <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="30" value="+421 ">
+      </div>
+      <div class="field">
+        <label for="f-email">E-mail</label>
+        <input id="f-email" name="email" type="email" inputmode="email" autocomplete="email" required maxlength="160" placeholder="jan@barbershop.sk">
+      </div>
+      <div class="field">
+        <label for="f-shop">Názov barbershopu</label>
+        <input id="f-shop" name="barbershop" required maxlength="160" placeholder="Barbershop XYZ">
+      </div>
+      <div class="field">
+        <label for="f-resys">Aký rezervačný systém používate?</label>
+        <div class="selwrap">
+          <select id="f-resys" name="resys" required>
+            <option value="" disabled selected>Vyberte…</option>
+            <option value="bookio">Bookio</option>
+            <option value="booqme">Booqme</option>
+            <option value="reservio">Reservio</option>
+            <option value="iny">Iný</option>
+            <option value="ziadny">Zatiaľ žiadny</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-link">Odkaz na váš rezervák / web / Instagram <span class="opt">(nepovinné)</span></label>
+        <input id="f-link" name="link" inputmode="url" maxlength="300" placeholder="https://…">
+      </div>
+      <!-- honeypot -->
+      <input id="f-hp" name="website" tabindex="-1" autocomplete="off" style="position:absolute;left:-5000px" aria-hidden="true">
+      <div class="err" id="ferr"></div>
+      <button class="btn" id="fsubmit" type="submit">Potvrdiť rezerváciu</button>
+      <p class="legal">Odoslaním rezervácie beriete na vedomie, že vaše údaje spracujeme na dohodnutie a prípravu tohto hovoru. Žiadny newsletter, žiadny spam, kedykoľvek ich zmažeme na požiadanie. Viac v <a href="zasady-ochrany-udajov.html" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">zásadách ochrany osobných údajov</a>.</p>
+    </form>
+  </section>
+
+  <footer>
+    <span class="mono">BoostMail · nerad@boostmail.cz · <a href="zasady-ochrany-udajov.html">Ochrana údajov</a></span>
+  </footer>
+</div>
+
+<script type="module">
+import { SUPABASE_URL, SUPABASE_KEY, HORIZON_DAYS, MIN_NOTICE_HOURS, SLOT_STEP_MIN, AVAILABILITY, BLOCKED_DAYS, PRIVACY_VERSION } from "./config.js";
+
+const TZ = "Europe/Bratislava";
+const $ = (s) => document.querySelector(s);
+
+// ---------- čas: Bratislava wall time -> UTC instant ----------
+function tzOffsetMs(date) {
+  const dtf = new Intl.DateTimeFormat("en-US", { timeZone: TZ, hour12: false,
+    year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  const p = Object.fromEntries(dtf.formatToParts(date).map(x => [x.type, x.value]));
+  const asUTC = Date.UTC(p.year, p.month - 1, p.day, p.hour === "24" ? 0 : p.hour, p.minute, p.second);
+  return asUTC - date.getTime();
+}
+function fromBratislava(y, m, d, hh, mm) {
+  const guess = new Date(Date.UTC(y, m - 1, d, hh, mm));
+  return new Date(guess.getTime() - tzOffsetMs(guess));
+}
+function baDateParts(date) {
+  const dtf = new Intl.DateTimeFormat("sk-SK", { timeZone: TZ, year: "numeric", month: "numeric", day: "numeric", weekday: "short" });
+  const p = Object.fromEntries(dtf.formatToParts(date).map(x => [x.type, x.value]));
+  return p;
+}
+const fmtTime = new Intl.DateTimeFormat("sk-SK", { timeZone: TZ, hour: "2-digit", minute: "2-digit" });
+const fmtDay = new Intl.DateTimeFormat("sk-SK", { timeZone: TZ, weekday: "long", day: "numeric", month: "long" });
+
+// ---------- generování slotů ----------
+function daysList() {
+  const out = [];
+  const now = new Date();
+  for (let i = 0; i < HORIZON_DAYS; i++) {
+    const probe = new Date(now.getTime() + i * 86400000);
+    const p = baDateParts(probe);
+    const key = `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+    out.push({ y: +p.year, m: +p.month, d: +p.day, key, label: i === 0 ? "Dnes" : i === 1 ? "Zajtra" : null });
+  }
+  return out;
+}
+function slotsForDay(day) {
+  if (BLOCKED_DAYS.includes(day.key)) return [];
+  const res = [];
+  const minStart = Date.now() + MIN_NOTICE_HOURS * 3600000;
+  for (const w of AVAILABILITY) {
+    const [fh, fm] = w.from.split(":").map(Number);
+    const [th, tm] = w.to.split(":").map(Number);
+    const probe = fromBratislava(day.y, day.m, day.d, 12, 0);
+    const dow = new Date(probe.toLocaleString("en-US", { timeZone: TZ })).getDay();
+    if (!w.dows.includes(dow)) continue;
+    for (let t = fh * 60 + fm; t + 15 <= th * 60 + tm; t += SLOT_STEP_MIN) {
+      const start = fromBratislava(day.y, day.m, day.d, Math.floor(t / 60), t % 60);
+      if (start.getTime() >= minStart) res.push(start);
+    }
+  }
+  return res.sort((a, b) => a - b);
+}
+
+// ---------- taken slots ----------
+async function rpc(fn, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(`rpc ${fn} ${r.status}`);
+  return r.json();
+}
+let takenSet = new Set();
+async function loadTaken() {
+  try {
+    const from = new Date().toISOString();
+    const to = new Date(Date.now() + (HORIZON_DAYS + 1) * 86400000).toISOString();
+    const rows = await rpc("sk_taken_slots", { p_from: from, p_to: to });
+    takenSet = new Set(rows.map((x) => new Date(x).getTime()));
+  } catch (e) { console.warn("taken slots", e); }
+}
+
+// ---------- UI state ----------
+const days = daysList().map((d) => ({ ...d, slots: slotsForDay(d) }));
+let selDay = days.find((d) => d.slots.length) || days[0];
+let selSlot = null;
+
+function renderDays() {
+  const el = $("#days");
+  el.innerHTML = "";
+  for (const d of days) {
+    const free = d.slots.filter((s) => !takenSet.has(s.getTime()));
+    const div = document.createElement("div");
+    div.className = "day" + (d === selDay ? " sel" : "") + (free.length === 0 ? " off" : "");
+    const p = baDateParts(fromBratislava(d.y, d.m, d.d, 12, 0));
+    div.innerHTML = `<div class="dw">${d.label || p.weekday}</div><div class="dd">${d.d}.${d.m}.</div><div class="dot"></div>`;
+    if (free.length) div.onclick = () => { selDay = d; selSlot = null; $("#form-card").style.display = "none"; render(); };
+    el.appendChild(div);
+  }
+}
+function renderSlots() {
+  const el = $("#slots");
+  el.innerHTML = "";
+  const free = selDay.slots.filter((s) => !takenSet.has(s.getTime()));
+  const info = $("#day-info");
+  if (free.length) {
+    info.innerHTML = `${fmtDay.format(selDay.slots[0])} — <b>${free.length} voľných termínov</b>`;
+    info.style.display = "block";
+  } else { info.style.display = "none"; }
+  $("#slots-empty").style.display = free.length ? "none" : "block";
+  for (const s of selDay.slots) {
+    const taken = takenSet.has(s.getTime());
+    const b = document.createElement("div");
+    b.className = "slot" + (taken ? " taken" : "") + (selSlot && selSlot.getTime() === s.getTime() ? " sel" : "");
+    b.textContent = fmtTime.format(s);
+    if (!taken) b.onclick = () => {
+      selSlot = s;
+      render();
+      $("#form-card").style.display = "block";
+      $("#summary").textContent = `📅 ${fmtDay.format(s)} o ${fmtTime.format(s)} (15 min)`;
+      $("#form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    };
+    el.appendChild(b);
+  }
+}
+function render() { renderDays(); renderSlots(); }
+
+// ---------- submit ----------
+$("#bform").addEventListener("submit", async (ev) => {
+  ev.preventDefault();
+  const err = $("#ferr"); err.classList.remove("show");
+  if ($("#f-hp").value) return; // bot
+  if (!selSlot) { err.textContent = "Vyberte si najprv termín."; err.classList.add("show"); return; }
+  const f = ev.target;
+  if (!f.reportValidity()) return;
+  const btn = $("#fsubmit"); btn.disabled = true; btn.textContent = "Rezervujem…";
+  const utm = {};
+  new URLSearchParams(location.search).forEach((v, k) => {
+    if (/^(utm_|fbclid|gclid)/i.test(k)) utm[k] = v.slice(0, 200);
+  });
+  try {
+    const res = await rpc("sk_create_booking", {
+      p_slot_start: selSlot.toISOString(),
+      p_name: f.name.value, p_phone: f.phone.value, p_email: f.email.value,
+      p_barbershop: f.barbershop.value, p_resys: f.resys.value,
+      p_link: f.link.value || null,
+      p_utm: Object.keys(utm).length ? utm : null,
+      p_referrer: document.referrer ? document.referrer.slice(0, 300) : null,
+      p_privacy_version: PRIVACY_VERSION,
+    });
+    if (res.ok) {
+      location.href = `dakujeme.html?t=${encodeURIComponent(selSlot.toISOString())}&n=${encodeURIComponent(f.name.value)}`;
+      return;
+    }
+    if (res.reason === "taken") {
+      err.textContent = "Tento termín si práve niekto zobral. Vyberte si prosím iný.";
+      await loadTaken(); selSlot = null; $("#form-card").style.display = "none"; render();
+      $("#pick-card").scrollIntoView({ behavior: "smooth" });
+    } else {
+      err.textContent = "Skontrolujte prosím vyplnené údaje.";
+    }
+    err.classList.add("show");
+  } catch (e) {
+    err.textContent = "Nepodarilo sa spojiť so serverom. Skúste to o chvíľu, alebo napíšte na nerad@boostmail.cz.";
+    err.classList.add("show");
+  }
+  btn.disabled = false; btn.textContent = "Potvrdiť rezerváciu";
+});
+
+// ---------- init ----------
+await loadTaken();
+render();
+</script>
+</body>
+</html>
