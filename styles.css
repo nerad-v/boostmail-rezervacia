@@ -38,11 +38,24 @@ h1{font-weight:600;letter-spacing:-.02em;line-height:1.1;font-size:clamp(27px,7.
   width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center}
 
 /* dny — kompaktní mřížka 7×2, všech 14 dní viditelných (Zocdoc pattern) */
-.days{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
 .day{text-align:center;background:var(--surface-2);border:1.5px solid var(--line);
-  border-radius:12px;padding:8px 0 7px;cursor:pointer;user-select:none;min-width:0}
+  border-radius:12px;padding:8px 2px 7px;cursor:pointer;user-select:none;min-width:0;overflow:hidden}
+.day .dw,.day .dd{white-space:nowrap;overflow:hidden;text-overflow:clip}
 .day .dw{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--faint)}
 .day .dd{font-weight:600;font-size:14.5px;margin-top:1px}
+/* úzké telefony (iPhone SE apod.) — jinak text přetékal z rámečků a dny se překrývaly */
+@media (max-width:380px){
+  .days{gap:4px}
+  .day{padding:7px 1px 6px;border-radius:10px}
+  .day .dw{font-size:8px;letter-spacing:0}
+  .day .dd{font-size:12px}
+  .day .dot{width:3px;height:3px;margin-top:2px}
+}
+@media (max-width:340px){
+  .day .dw{font-size:7.5px}
+  .day .dd{font-size:11px}
+}
 .day .dot{width:4px;height:4px;border-radius:50%;background:var(--ok);margin:3px auto 0}
 .day.sel{border-color:var(--accent);background:var(--accent-soft)}
 .day.sel .dd{color:var(--accent-ink)}
