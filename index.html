@@ -8,14 +8,13 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=4">
-<script type="module" src="consent.js?v=3"></script>
+<link rel="stylesheet" href="styles.css?v=5">
+<script type="module" src="consent.js?v=4"></script>
 </head>
 <body>
 <div class="wrap">
   <header class="top">
     <img src="assets/logo-dark.svg" alt="BoostMail">
-    <span class="mono">15 min · online</span>
   </header>
 
   <section class="hero" style="padding-bottom:14px">
@@ -29,11 +28,10 @@
     <p class="day-info" id="day-info"></p>
     <div class="slots" id="slots"></div>
     <p class="slots-empty" id="slots-empty" style="display:none">V tento deň už nie sú voľné termíny — skúste iný deň.</p>
-    <div class="chips" style="margin-top:16px">
-      <span class="chip">Žiadne záväzky</span>
-      <span class="chip">Volá Vojta</span>
-      <span class="chip">15 minút, viac nie</span>
-    </div>
+    <!-- Dřív tu byly tři pill-chipy, které vypadaly jako tlačítka a nic nedělaly
+         (28 mrtvých kliků = 10 % všech dotyků). Teď: jedno skutečné tlačítko + prostý text. -->
+    <button type="button" class="btn ghost jump" id="jump-slots">↑ Vybrať termín</button>
+    <p class="trust">Žiadne záväzky · Volá Vojta · 15 minút, viac nie</p>
   </section>
 
   <section class="card" id="form-card" style="display:none">
@@ -198,6 +196,7 @@ function renderSlots() {
     if (!taken) b.onclick = () => {
       selSlot = s;
       render();
+      $("#jump-slots").style.display = "none";
       $("#form-card").style.display = "block";
       $("#summary").textContent = `📅 ${fmtDay.format(s)} o ${fmtTime.format(s)} (15 min)`;
       $("#form-card").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -206,6 +205,13 @@ function renderSlots() {
   }
 }
 function render() { renderDays(); renderSlots(); }
+
+// tlačítko „↑ Vybrať termín" — schová se, jakmile je slot vybraný
+$("#jump-slots").onclick = () => {
+  $("#slots").scrollIntoView({ behavior: "smooth", block: "center" });
+  $("#slots").classList.add("pulse");
+  setTimeout(() => $("#slots").classList.remove("pulse"), 1200);
+};
 
 // ---------- submit ----------
 $("#bform").addEventListener("submit", async (ev) => {
@@ -250,8 +256,18 @@ $("#bform").addEventListener("submit", async (ev) => {
 });
 
 // ---------- init ----------
-await loadTaken();
+// ⚡ Vykreslíme OKAMŽITE (bez čekání na síť) — obsazené sloty doznačíme, až dorazí odpověď.
+// Dřív tu bylo `await loadTaken(); render();`, což na mobilu nechávalo 1–2 s prázdnou kartu
+// a Clarity ukazovala 33 % odchodů do 2 vteřin.
 render();
+loadTaken().then(() => {
+  // pokud si mezitím někdo vybral slot, který je už obsazený, vrátíme ho zpět k výběru
+  if (selSlot && takenSet.has(selSlot.getTime())) {
+    selSlot = null;
+    $("#form-card").style.display = "none";
+  }
+  render();
+});
 </script>
 </body>
 </html>
