@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=6">
+<link rel="stylesheet" href="styles.css?v=8">
 <script type="module" src="consent.js?v=4"></script>
 </head>
 <body>
@@ -20,7 +20,10 @@
   <section class="hero" style="padding-bottom:14px">
     <span class="badge">📞 Hovor s Vojtom · 15 min</span>
     <h1>Vyberte si termín</h1>
-    <p class="sub" style="font-size:15px">Pozrieme sa priamo na váš barbershop — a uvidíte, koľko peňazí vám leží v rezerváku.</p>
+    <!-- Message match: preberá jazyk reklamy („nemusíte naháňať nových klientov")
+         + jeden konkrétny dôkaz hneď nad kalendárom. Predtým tu nebolo ani jedno. -->
+    <p class="sub" style="font-size:15px">Nemusíte naháňať nových klientov — systém osloví tých, ktorých už máte.
+      Barbershopu MNB tak priniesol <b>7 788 € za 90 dní</b>.</p>
   </section>
 
   <section class="card" id="pick-card" style="margin-top:6px">
@@ -77,6 +80,29 @@
       <button class="btn" id="fsubmit" type="submit">Potvrdiť rezerváciu</button>
       <p class="legal">Odoslaním rezervácie beriete na vedomie, že vaše údaje spracujeme na dohodnutie a prípravu tohto hovoru. Žiadny newsletter, žiadny spam, kedykoľvek ich zmažeme na požiadanie. Viac v <a href="zasady-ochrany-udajov.html" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:underline">zásadách ochrany osobných údajov</a>.</p>
     </form>
+  </section>
+
+  <!-- ⬇ DÔKAZ. Doteraz bol LEN na ďakovnej stránke — čiže ho videli iba tí,
+       čo už zarezervovali (1,2 %). Tých 98,8 %, ktorých treba presvedčiť, ho nevidelo nikdy.
+       Clarity: 75 % návštevníkov doroluje na koniec stránky, takže sem dovidia. -->
+  <section class="card" id="proof-card">
+    <h2><span class="num">✓</span> Prečo tých 15 minút stojí za to</h2>
+
+    <img class="proof-img" src="assets/proof-mnb.png" loading="lazy"
+      alt="Prehľad BoostMail — 7 788 € tržieb privedených e-mailom za 90 dní">
+    <p class="caption">MNB Barbershop — <b>7 788 € tržieb</b> privedených e-mailom za 90 dní,
+      zo 4 036 odoslaných e-mailov. Screenshot priamo z ich prehľadu.</p>
+
+    <div class="wa-wrap">
+      <img src="assets/wa-1.png" loading="lazy" alt="Správa majiteľa barbershopu" style="width:100%;display:block;border-radius:10px">
+      <img src="assets/wa-2.png" loading="lazy" alt="Doporučím vás, kade pôjdem" style="width:62%;display:block;border-radius:10px;margin-top:8px">
+      <p class="caption" style="color:rgba(255,255,255,.55);text-align:center;margin-top:12px;font-style:italic">
+        Michael, majiteľ barbershopu — reakcia po 2 týždňoch na systéme</p>
+    </div>
+
+    <p class="trust" style="margin-top:18px">Na hovore prejdeme váš rezervák a poviem vám číslo — koľko v ňom leží.<br>
+      Žiadny záväzok. Ak to nedáva zmysel, poviete nie.</p>
+    <button type="button" class="btn jump2" id="jump-slots-2">Vybrať termín ↑</button>
   </section>
 
   <footer>
@@ -197,6 +223,7 @@ function renderSlots() {
       selSlot = s;
       render();
       $("#jump-slots").style.display = "none";
+      $("#jump-slots-2").style.display = "none";
       $("#form-card").style.display = "block";
       $("#summary").textContent = `📅 ${fmtDay.format(s)} o ${fmtTime.format(s)} (15 min)`;
       $("#form-card").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -206,12 +233,14 @@ function renderSlots() {
 }
 function render() { renderDays(); renderSlots(); }
 
-// tlačítko „↑ Vybrať termín" — schová se, jakmile je slot vybraný
-$("#jump-slots").onclick = () => {
+// tlačítka „Vybrať termín" — obě sjedou ke slotům a zvýrazní je
+function jumpToSlots() {
   $("#slots").scrollIntoView({ behavior: "smooth", block: "center" });
   $("#slots").classList.add("pulse");
   setTimeout(() => $("#slots").classList.remove("pulse"), 1200);
-};
+}
+$("#jump-slots").onclick = jumpToSlots;
+$("#jump-slots-2").onclick = jumpToSlots;
 
 // ---------- submit ----------
 $("#bform").addEventListener("submit", async (ev) => {
