@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 <script type="module" src="consent.js?v=4"></script>
 </head>
 <body>
@@ -43,11 +43,17 @@
     <form id="bform" novalidate>
       <div class="field">
         <label for="f-name">Meno a priezvisko</label>
-        <input id="f-name" name="name" autocomplete="name" required maxlength="120" placeholder="Ján Novák">
+        <input id="f-name" name="name" autocomplete="name" required minlength="2" maxlength="120" placeholder="Ján Novák">
       </div>
       <div class="field">
         <label for="f-phone">Telefón</label>
-        <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required maxlength="30" value="+421 ">
+        <!-- POZOR: pole bylo predvyplnené „+421 ", čo prešlo HTML validáciou (nie je prázdne),
+             ale server ho odmietol ako príliš krátke → používateľ dostal nezrozumiteľnú chybu.
+             Teraz je predvyplnenie preč a je tu vzor, ktorý vyžaduje aspoň 9 číslic. -->
+        <input id="f-phone" name="phone" type="tel" inputmode="tel" autocomplete="tel" required
+               maxlength="30" placeholder="+421 901 234 567"
+               pattern="[^0-9]*([0-9][^0-9]*){9,}"
+               title="Zadajte telefónne číslo — aspoň 9 číslic">
       </div>
       <div class="field">
         <label for="f-email">E-mail</label>
@@ -55,7 +61,7 @@
       </div>
       <div class="field">
         <label for="f-shop">Názov barbershopu</label>
-        <input id="f-shop" name="barbershop" required maxlength="160" placeholder="Barbershop XYZ">
+        <input id="f-shop" name="barbershop" required minlength="2" maxlength="160" placeholder="Barbershop XYZ">
       </div>
       <div class="field">
         <label for="f-resys">Aký rezervačný systém používate?</label>
@@ -271,10 +277,28 @@ $("#bform").addEventListener("submit", async (ev) => {
     }
     if (res.reason === "taken") {
       err.textContent = "Tento termín si práve niekto zobral. Vyberte si prosím iný.";
-      await loadTaken(); selSlot = null; $("#form-card").style.display = "none"; render();
+      await loadTaken(); selSlot = null;
+      $("#form-card").style.display = "none";
+      $("#jump-slots").style.display = ""; $("#jump-slots-2").style.display = "";
+      render();
       $("#pick-card").scrollIntoView({ behavior: "smooth" });
+    } else if (res.reason === "past") {
+      err.textContent = "Tento termín už medzitým prešiel. Vyberte si prosím neskorší.";
+      selSlot = null; $("#form-card").style.display = "none";
+      $("#jump-slots").style.display = ""; $("#jump-slots-2").style.display = "";
+      render();
     } else {
-      err.textContent = "Skontrolujte prosím vyplnené údaje.";
+      // konkrétne pole, nie neurčité „skontrolujte údaje" — kvôli tomu 13.8. jeden
+      // záujemca odoslal formulár 8× a vzdal to
+      const podla = {
+        telefon: ["Telefónne číslo nevyzerá správne — zadajte aspoň 9 číslic.", "#f-phone"],
+        meno:    ["Vyplňte prosím meno a priezvisko.", "#f-name"],
+        barbershop: ["Vyplňte prosím názov barbershopu.", "#f-shop"],
+        dlzka:   ["Niektoré pole je príliš dlhé, skráťte ho prosím.", null],
+      };
+      const [text, sel] = podla[res.pole] || ["Skontrolujte prosím vyplnené údaje.", null];
+      err.textContent = text;
+      if (sel) { const el = $(sel); el.focus(); el.scrollIntoView({ behavior: "smooth", block: "center" }); }
     }
     err.classList.add("show");
   } catch (e) {
